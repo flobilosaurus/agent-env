@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./internal/... ./test/e2e/...
+
+      - name: Build release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+            goos="${target%/*}"
+            goarch="${target#*/}"
+            name="agentenv-${goos}-${goarch}"
+
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath -o "dist/${name}/agentenv" ./cmd/agentenv
+
+            tar -C "dist/${name}" -czf "dist/${name}.tar.gz" agentenv
+            rm -rf "dist/${name}"
+          done
+
+          cd dist
+          sha256sum *.tar.gz > checksums.txt
+
+      - name: Generate changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          prev_tag="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
+
+          if [ -n "$prev_tag" ]; then
+            range="$prev_tag..HEAD"
+            echo "Changes since $prev_tag" > CHANGELOG.md
+          else
+            range="HEAD"
+            echo "Changes" > CHANGELOG.md
+          fi
+
+          echo >> CHANGELOG.md
+          git log --pretty=format:"- %s" "$range" >> CHANGELOG.md
+          echo >> CHANGELOG.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: CHANGELOG.md
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt

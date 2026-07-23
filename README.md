@@ -2,7 +2,20 @@
 
 `agentenv` launches any AI coding agent with a project-specific identity by setting an isolated profile `HOME`.
 
-## Install/build
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/flobilosaurus/agent-env/main/install.sh | sh
+```
+
+Options:
+
+```sh
+AGENTENV_INSTALL_DIR=/usr/local/bin sh -c "$(curl -fsSL https://raw.githubusercontent.com/flobilosaurus/agent-env/main/install.sh)"
+AGENTENV_VERSION=v0.1.0 sh -c "$(curl -fsSL https://raw.githubusercontent.com/flobilosaurus/agent-env/main/install.sh)"
+```
+
+## Build
 
 ```sh
 mise install
