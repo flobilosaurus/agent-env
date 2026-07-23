@@ -55,3 +55,20 @@ func TestProfileCreateView(t *testing.T) {
 		t.Fatalf("create view mismatch\nwant:\n%s\ngot:\n%s", want, got)
 	}
 }
+
+func TestProfileRemoveView(t *testing.T) {
+	m := newRemoveModel([]config.Profile{{Name: "customer-a"}, {Name: "customer-b"}})
+	want := "╭─ agentenv ───────────────────────────────────────────────╮\n" +
+		"│                                                          │\n" +
+		"│  Remove a Profile                                        │\n" +
+		"│  Select a profile to delete with its folder              │\n" +
+		"│                                                          │\n" +
+		"│  ▸ customer-a                                            │\n" +
+		"│    customer-b                                            │\n" +
+		"│                                                          │\n" +
+		"│  ↑/↓/j/k move • enter remove • esc/ctrl+c cancel         │\n" +
+		"╰──────────────────────────────────────────────────────────╯"
+	if got := m.View(); got != want {
+		t.Fatalf("remove view mismatch\nwant:\n%s\ngot:\n%s", want, got)
+	}
+}

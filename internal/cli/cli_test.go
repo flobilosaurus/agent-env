@@ -24,6 +24,16 @@ func (f *fakePrompter) ChooseProfile(agent string, profiles []config.Profile) (s
 	return f.profile, f.create, nil
 }
 
+type fakeRemovePrompter struct {
+	profile string
+	calls   int
+}
+
+func (f *fakeRemovePrompter) ChooseProfileToRemove(profiles []config.Profile) (string, error) {
+	f.calls++
+	return f.profile, nil
+}
+
 func TestMissingArgs(t *testing.T) {
 	var err bytes.Buffer
 	code := App{Err: &err}.Run(nil)
@@ -148,6 +158,65 @@ func TestRunUnknownLeadingOptionRemainsAgentName(t *testing.T) {
 	got, _ := os.ReadFile(record)
 	if !strings.Contains(string(got), "AGENT=--foo") {
 		t.Fatalf("did not execute --foo agent: %s", got)
+	}
+}
+
+func TestRemoveProfileDeletesConfigMappingsAndFolder(t *testing.T) {
+	cfgHome := t.TempDir()
+	dataHome := t.TempDir()
+	project := t.TempDir()
+	t.Setenv("AGENTENV_CONFIG_HOME", cfgHome)
+	t.Setenv("AGENTENV_HOME", dataHome)
+	writeTestConfig(t, cfgHome, project, "old-profile", "keep-profile")
+	profileDir := filepath.Join(dataHome, "profiles", "old-profile")
+	if err := os.MkdirAll(filepath.Join(profileDir, "home"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	var out, errBuf bytes.Buffer
+	code := App{Out: &out, Err: &errBuf}.Run([]string{"remove", "old-profile"})
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, errBuf.String())
+	}
+	assertProfileRemoved(t, cfgHome, profileDir)
+}
+
+func TestRemoveWithoutProfileUsesSelector(t *testing.T) {
+	cfgHome := t.TempDir()
+	dataHome := t.TempDir()
+	project := t.TempDir()
+	t.Setenv("AGENTENV_CONFIG_HOME", cfgHome)
+	t.Setenv("AGENTENV_HOME", dataHome)
+	writeTestConfig(t, cfgHome, project, "old-profile", "keep-profile")
+	profileDir := filepath.Join(dataHome, "profiles", "old-profile")
+	if err := os.MkdirAll(filepath.Join(profileDir, "home"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	prompter := &fakeRemovePrompter{profile: "old-profile"}
+	var out, errBuf bytes.Buffer
+	code := App{Out: &out, Err: &errBuf, RemovePrompter: prompter}.Run([]string{"remove"})
+	if code != 0 {
+		t.Fatalf("code=%d err=%s", code, errBuf.String())
+	}
+	if prompter.calls != 1 {
+		t.Fatalf("prompter calls=%d", prompter.calls)
+	}
+	assertProfileRemoved(t, cfgHome, profileDir)
+}
+
+func assertProfileRemoved(t *testing.T, cfgHome, profileDir string) {
+	t.Helper()
+	cfg := loadTestConfig(t, cfgHome)
+	if cfg.HasProfile("old-profile") {
+		t.Fatalf("profile still in config: %+v", cfg.Profiles)
+	}
+	if !cfg.HasProfile("keep-profile") {
+		t.Fatalf("other profile removed: %+v", cfg.Profiles)
+	}
+	if len(cfg.Projects) != 0 {
+		t.Fatalf("mapping not removed: %+v", cfg.Projects)
+	}
+	if _, err := os.Stat(profileDir); !os.IsNotExist(err) {
+		t.Fatalf("profile folder still exists or stat failed: %v", err)
 	}
 }
 

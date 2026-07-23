@@ -32,8 +32,12 @@ func Resolve() (Paths, error) {
 
 func (p Paths) ConfigFile() string { return filepath.Join(p.ConfigHome, "agentenv", "config.toml") }
 func (p Paths) BinDir() string     { return filepath.Join(p.DataRoot, "bin") }
+func (p Paths) ProfileDir(profile string) string {
+	return filepath.Join(p.DataRoot, "profiles", profile)
+}
+
 func (p Paths) ProfileHome(profile string) string {
-	return filepath.Join(p.DataRoot, "profiles", profile, "home")
+	return filepath.Join(p.ProfileDir(profile), "home")
 }
 
 func EnsureProfileHome(p Paths, profile string) (string, error) {

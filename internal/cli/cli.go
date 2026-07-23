@@ -18,9 +18,10 @@ import (
 const Version = "0.1.0"
 
 type App struct {
-	In       io.Reader
-	Out, Err io.Writer
-	Prompter tui.ProfilePrompter
+	In             io.Reader
+	Out, Err       io.Writer
+	Prompter       tui.ProfilePrompter
+	RemovePrompter tui.ProfileRemovePrompter
 }
 
 func (a App) Run(args []string) int {
@@ -48,6 +49,8 @@ func (a App) Run(args []string) int {
 		return a.run(args[1:])
 	case "wrap":
 		return a.wrap(args[1:])
+	case "remove":
+		return a.remove(args[1:])
 	case "doctor":
 		return a.doctor(args[1:])
 	default:
@@ -61,10 +64,11 @@ func Usage() string {
 
 Commands:
   run [--select] <agent> [args...]   Run an agent with project profile HOME isolation
-  wrap <agent>                      Install a wrapper into the agentenv bin directory
-  doctor [agent]          Check config, mappings, profile homes, and PATH
-  version                 Print version
-  help                    Print help
+  wrap <agent>                       Install a wrapper into the agentenv bin directory
+  remove [profile]                   Remove a profile, its mappings, and its folder
+  doctor [agent]                     Check config, mappings, profile homes, and PATH
+  version                            Print version
+  help                               Print help
 `
 }
 
@@ -74,6 +78,8 @@ func (a App) commandUsage(cmd string) string {
 		return "Usage: agentenv run [--select] <agent> [args...]\n"
 	case "wrap":
 		return "Usage: agentenv wrap <agent>\n"
+	case "remove":
+		return "Usage: agentenv remove [profile]\n"
 	case "doctor":
 		return "Usage: agentenv doctor [agent]\n"
 	}
@@ -210,6 +216,61 @@ func (a App) wrap(args []string) int {
 	} else {
 		fmt.Fprintf(a.Out, "PATH setup already up to date: %s\n", pathResult.ProfilePath)
 	}
+	return 0
+}
+
+func (a App) remove(args []string) int {
+	if len(args) > 1 {
+		fmt.Fprint(a.Err, a.commandUsage("remove"))
+		return 2
+	}
+	p, err := paths.Resolve()
+	if err != nil {
+		fmt.Fprintln(a.Err, "agentenv:", err)
+		return 1
+	}
+	cfgPath := p.ConfigFile()
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		fmt.Fprintln(a.Err, "agentenv: config:", err)
+		return 1
+	}
+	profile := ""
+	if len(args) == 1 {
+		profile = args[0]
+	} else {
+		if len(cfg.Profiles) == 0 {
+			fmt.Fprintln(a.Err, "agentenv: no profiles to remove")
+			return 1
+		}
+		if os.Getenv("AGENTENV_NONINTERACTIVE") == "1" {
+			fmt.Fprintln(a.Err, "agentenv: cannot select a profile in non-interactive mode")
+			return 1
+		}
+		prompter := a.RemovePrompter
+		if prompter == nil {
+			prompter = tui.BubblePrompter{}
+		}
+		profile, err = prompter.ChooseProfileToRemove(cfg.Profiles)
+		if err != nil {
+			fmt.Fprintln(a.Err, "agentenv:", err)
+			return 1
+		}
+	}
+	if err := cfg.RemoveProfile(profile); err != nil {
+		fmt.Fprintln(a.Err, "agentenv:", err)
+		return 1
+	}
+	profileDir := p.ProfileDir(profile)
+	if err := os.RemoveAll(profileDir); err != nil {
+		fmt.Fprintln(a.Err, "agentenv: remove profile folder:", err)
+		return 1
+	}
+	if err := config.Save(cfgPath, cfg); err != nil {
+		fmt.Fprintln(a.Err, "agentenv: save config:", err)
+		return 1
+	}
+	fmt.Fprintf(a.Out, "removed profile %q and folder: %s\n", profile, profileDir)
 	return 0
 }
 

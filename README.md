@@ -27,6 +27,7 @@ mise run build
 ```sh
 agentenv run [--select] <agent> [args...]
 agentenv wrap <agent>
+agentenv remove [profile]
 agentenv doctor [agent]
 ```
 
@@ -42,6 +43,8 @@ agentenv run codex --help
 `run` is agent-agnostic. It resolves the real executable from `PATH` while skipping the agentenv wrapper bin directory to avoid recursion. On first use in an unmapped project, it opens a terminal profile selector/creator and stores the local project-to-profile mapping. Use `agentenv run --select <agent>` to force the selector even when a mapping already exists; arguments after `<agent>` are passed through unchanged.
 
 `wrap <agent>` writes `$AGENTENV_HOME/bin/<agent>` and updates your shell startup file (`.zshrc`, `.bashrc`, `.profile`, Nushell `env.nu`, or fish `conf.d/agentenv.fish`) with an agentenv-managed block that puts that wrapper directory before real agent binaries on `PATH`. Restart your shell or source the updated file before running the agent command directly.
+
+`remove [profile]` deletes the profile from config, removes project mappings that used it, and deletes `$AGENTENV_HOME/profiles/<profile>`. Without a profile argument, it opens an interactive profile selector.
 
 `doctor [agent]` checks config readability, project mapping, profile home paths, wrapper/PATH state, real-agent resolution, and when an agent is provided runs `/resolved/real-agent --version` as a light probe.
 

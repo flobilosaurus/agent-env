@@ -127,3 +127,28 @@ func (c *Config) SetProject(project, profile string) error {
 	c.Projects[key] = profile
 	return nil
 }
+
+func (c *Config) RemoveProfile(name string) error {
+	if err := ValidateProfileName(name); err != nil {
+		return err
+	}
+	found := false
+	profiles := c.Profiles[:0]
+	for _, p := range c.Profiles {
+		if p.Name == name {
+			found = true
+			continue
+		}
+		profiles = append(profiles, p)
+	}
+	if !found {
+		return fmt.Errorf("profile %q does not exist", name)
+	}
+	c.Profiles = profiles
+	for project, profile := range c.Projects {
+		if profile == name {
+			delete(c.Projects, project)
+		}
+	}
+	return nil
+}

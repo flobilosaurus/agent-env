@@ -23,6 +23,10 @@ type ProfilePrompter interface {
 	ChooseProfile(agent string, profiles []config.Profile) (profile string, create bool, err error)
 }
 
+type ProfileRemovePrompter interface {
+	ChooseProfileToRemove(profiles []config.Profile) (profile string, err error)
+}
+
 type BubblePrompter struct{}
 
 func (BubblePrompter) ChooseProfile(agent string, profiles []config.Profile) (string, bool, error) {
@@ -37,6 +41,20 @@ func (BubblePrompter) ChooseProfile(agent string, profiles []config.Profile) (st
 		return "", false, fmt.Errorf("profile selection cancelled")
 	}
 	return fm.selected, fm.created, nil
+}
+
+func (BubblePrompter) ChooseProfileToRemove(profiles []config.Profile) (string, error) {
+	m := newRemoveModel(profiles)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	res, err := p.Run()
+	if err != nil {
+		return "", err
+	}
+	fm := res.(removeModel)
+	if fm.cancelled {
+		return "", fmt.Errorf("profile removal cancelled")
+	}
+	return fm.selected, nil
 }
 
 type mode int
@@ -141,6 +159,67 @@ func (m model) currentProfileLabel() string {
 		return m.profiles[m.cursor].Name
 	}
 	return "unmapped"
+}
+
+type removeModel struct {
+	profiles  []config.Profile
+	cursor    int
+	selected  string
+	cancelled bool
+}
+
+func newRemoveModel(profiles []config.Profile) removeModel {
+	return removeModel{profiles: profiles}
+}
+
+func (m removeModel) Init() tea.Cmd { return nil }
+func (m removeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "esc":
+			m.cancelled = true
+			return m, tea.Quit
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.profiles)-1 {
+				m.cursor++
+			}
+		case "enter":
+			if len(m.profiles) > 0 {
+				m.selected = m.profiles[m.cursor].Name
+			}
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m removeModel) View() string {
+	items := []string{"", accentStyle.Render("  Remove a Profile"), mutedStyle.Render("  Select a profile to delete with its folder"), ""}
+	for i, p := range m.profiles {
+		line := "    " + p.Name
+		if i == m.cursor {
+			line = selectedStyle.Render("  ▸ " + p.Name)
+		}
+		items = append(items, line)
+	}
+	items = append(items, "", mutedStyle.Render("  ↑/↓/j/k move • enter remove • esc/ctrl+c cancel"))
+	return renderActionBox(items)
+}
+
+func renderActionBox(lines []string) string {
+	const width = 58
+	var b strings.Builder
+	b.WriteString(borderStyle.Render("╭─ ") + accentStyle.Render("agentenv") + borderStyle.Render(" ───────────────────────────────────────────────╮") + "\n")
+	for _, line := range lines {
+		b.WriteString(profileLine(width, line))
+	}
+	b.WriteString(borderStyle.Render("╰──────────────────────────────────────────────────────────╯"))
+	return b.String()
 }
 
 func renderProfileBox(profile, agent string, lines []string) string {
