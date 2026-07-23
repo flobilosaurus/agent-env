@@ -1,0 +1,51 @@
+# Binaries and build output
+/agentenv
+/bin/
+/dist/
+/build/
+/out/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go artifacts
+coverage.out
+coverage.*
+*.coverprofile
+*.prof
+/vendor/
+
+# Temporary/cache files
+/tmp/
+.tmp/
+.cache/
+*.tmp
+*.temp
+
+# Logs
+*.log
+
+# Environment/local config
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# Editor/IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Nested test repo state (fixtures should not include their .git metadata)
+/test/.git/

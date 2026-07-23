@@ -1,0 +1,14 @@
+[tools]
+go = "1.22"
+
+[tasks.fmt]
+run = "gofmt -w cmd internal test"
+
+[tasks.build]
+run = "go build -o agentenv ./cmd/agentenv"
+
+[tasks.test]
+run = "go test ./internal/..."
+
+[tasks."test:e2e"]
+run = "go test ./test/e2e/..."
