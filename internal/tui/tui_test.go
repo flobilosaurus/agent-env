@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/flobilosaurus/agent-env/internal/config"
@@ -41,7 +42,7 @@ func TestProfileCreateView(t *testing.T) {
 	m := newModel("pi", []config.Profile{{Name: "customer-a"}})
 	m.mode = modeCreate
 	want := "╭─ agentenv ───────────────────────────────────────────────╮\n" +
-		"│ unmapped • pi                                            │\n" +
+		"│  • pi                                                    │\n" +
 		"├──────────────────────────────────────────────────────────┤\n" +
 		"│                                                          │\n" +
 		"│  Create a Profile                                        │\n" +
@@ -53,6 +54,23 @@ func TestProfileCreateView(t *testing.T) {
 		"╰──────────────────────────────────────────────────────────╯"
 	if got := m.View(); got != want {
 		t.Fatalf("create view mismatch\nwant:\n%s\ngot:\n%s", want, got)
+	}
+}
+
+func TestProfileCreateViewShowsTypedProfile(t *testing.T) {
+	m := newModel("pi", []config.Profile{{Name: "customer-a"}})
+	m.mode = modeCreate
+	m.input.SetValue("new-profile")
+	if got := m.View(); !strings.Contains(got, "│ new-profile • pi") {
+		t.Fatalf("create view should show typed profile in header\ngot:\n%s", got)
+	}
+}
+
+func TestProfileSelectionCreateRowShowsBlankProfile(t *testing.T) {
+	m := newModel("pi", []config.Profile{{Name: "customer-a"}})
+	m.cursor = len(m.profiles)
+	if got := m.View(); !strings.Contains(got, "│  • pi") {
+		t.Fatalf("selection create row should show blank profile in header\ngot:\n%s", got)
 	}
 }
 

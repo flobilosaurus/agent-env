@@ -133,7 +133,7 @@ func (m model) View() string {
 		if m.error != "" {
 			lines = append(lines, errorStyle.Render("  "+m.error))
 		}
-		return renderProfileBox("unmapped", m.agent, lines)
+		return renderProfileBox(strings.TrimSpace(m.input.Value()), m.agent, lines)
 	}
 	items := []string{"", accentStyle.Render("  Select a Profile"), mutedStyle.Render("  Choose an isolated HOME for this project"), ""}
 	for i, p := range m.profiles {
@@ -158,7 +158,7 @@ func (m model) currentProfileLabel() string {
 	if m.cursor >= 0 && m.cursor < len(m.profiles) {
 		return m.profiles[m.cursor].Name
 	}
-	return "unmapped"
+	return ""
 }
 
 type removeModel struct {
